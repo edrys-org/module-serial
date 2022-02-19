@@ -5,50 +5,133 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
-    <meta name="description" content="An example module to create your own" />
-    <meta name="show-in" content="*" />
-    <title>Example Module</title>
-  
+
+    <meta name="description" content="A WebSerial module for live serial comms with stations" />
+    <meta name="show-in" content="station" />
+    <title>Live WebSerial</title>
+
     <script src="https://edrys-org.github.io/edrys/module/edrys.js"></script>
- 
+
     <script defer src="https://edrys-org.github.io/edrys/module/vendor/alpine.min.js"></script>
     <link rel="stylesheet" href="https://edrys-org.github.io/edrys/module/vendor/water.min.css" />
     <link rel="stylesheet" href="https://edrys-org.github.io/edrys/module/vendor/open-iconic/css/open-iconic.min.css" />
+
+    <script src="./xterm/xterm.min.js"></script>
+    <link rel="stylesheet" href="./xterm/xterm.min.css">
 </head>
 
 <body>
     <template x-if="!!edrys" x-data="{ edrys: undefined }" x-init="Edrys.onUpdate((e) => { edrys = {...e} })">
-        <div>
-            <h1>Example Module</h1>
-            <hr />
-
-            <h2>Room Data</h2>
-            <div x-text="JSON.stringify(edrys)"></div>
-
-            <h2>Send Message</h2>
-            <form x-data="{ subject: '', message: '' }" x-on:submit.prevent="Edrys.sendMessage(subject, message)">
-                <input type="text" required minlength="1" placeholder="Subject" x-model="subject" />
-                <input type="text" required minlength="1" placeholder="Body" x-model="message" />
-                <button type="submit">
-                    <span class="oi" data-glyph="arrow-thick-right" aria-hidden="true"></span>
-                    Send message
-                </button>
-            </form>
-
-            <h2>Received messages</h2>
-            <div x-data="{ messages: [] }" x-init="Edrys.onMessage((m) => { messages.push(m) })">
-                <em x-show="!messages.length">No messages received yet...</em>
-                <ul>
-                    <template x-for="message in messages">
-                        <li>
-                            <code x-text="message.from"></code>:
-                            <code x-text="message.subject"></code> - 
-                            <code x-text="message.body"></code>
-                        </li>
-                    </template>
-                </ul>
+        <div x-show="edrys.role == 'station'" x-data="{ baudRate: 9600, connected: false }">
+            <div x-show="!connected">
+                <label for="baud">Baud Rate</label>
+                <select id="baud" x-model="baudRate">
+                    <option value="1200">1200</option>
+                    <option value="2400">2400</option>
+                    <option value="4800">4800</option>
+                    <option value="9600">9600</option>
+                    <option value="19200">19200</option>
+                    <option value="38400">38400</option>
+                    <option value="57600">57600</option>
+                    <option value="115200">115200</option>
+                </select>
+                <button @click="async (e) => { init(); await connect(baudRate); connected = true }">Connect</button>
             </div>
+            <div x-show="connected">
+                <button @click="async (e) => { await close(); connected = false }">Disconnect</button>
+            </div>
+        </div>
     </template>
+
+    <div id="terminal"></div>
+
+    <script type="module">
+        import { FitAddon } from './xterm/xterm-addon-fit.js'
+
+        var term = null
+        function init() {
+            term = new Terminal()
+            term.open(document.getElementById('terminal'));
+            const fitAddon = new FitAddon();
+            term.loadAddon(fitAddon);
+            fitAddon.fit();
+
+            term.onKey(e => {
+                let text = e.key
+                if (e.key == '\r') {
+                    text += '\n'
+                }
+                Edrys.sendMessage('w', text)
+            })
+
+            Edrys.onMessage(({ from, subject, body }) => {
+                term.write(body)
+
+                if (subject == 'w' && Edrys.role == 'station')
+                    write(body)
+            })
+        }
+
+        if (Edrys.role != 'station') init()
+
+        let port = null
+        async function connect(baudRate) {
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: baudRate });
+            read()
+        }
+
+        let reader = null
+        let readableStreamClosed = null
+        async function read() {
+            const textDecoder = new TextDecoderStream();
+            readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+            reader = textDecoder.readable.getReader();
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) {
+                    reader.releaseLock();
+                    break;
+                }
+                Edrys.sendMessage("r", value);
+            }
+        }
+
+        async function close() {
+            const textEncoder = new TextEncoderStream();
+            const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+            if (reader) reader.cancel();
+            if (readableStreamClosed) await readableStreamClosed.catch(() => { /* Ignored */ });
+            if (writer) writer.close();
+            if (writableStreamClosed) await writableStreamClosed;
+            await port.close();
+        }
+
+        let writer = null
+        let writableStreamClosed = null
+        async function write(text) {
+            const textEncoder = new TextEncoderStream();
+            writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+            writer = textEncoder.writable.getWriter();
+            await writer.write(text);
+        }
+    </script>
+
+    <style>
+        body,
+        html,
+        #terminal,
+        .terminal {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            overflow: hidden;
+        }
+    </style>
 </body>
+
 </html>
