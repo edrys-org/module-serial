@@ -35,10 +35,11 @@
                     <option value="57600">57600</option>
                     <option value="115200">115200</option>
                 </select>
-                <button @click="async (e) => { init(); await connect(baudRate); connected = true }">Connect</button>
+                <button
+                    @click="async (e) => { await window.serial_connect(baudRate); connected = true }">Connect</button>
             </div>
             <div x-show="connected">
-                <button @click="async (e) => { await close(); connected = false }">Disconnect</button>
+                <button @click="async (e) => { await window.serial_close(); connected = false }">Disconnect</button>
             </div>
         </div>
     </template>
@@ -47,43 +48,39 @@
 
     <script type="module">
         import { FitAddon } from './xterm/xterm-addon-fit.js'
+        console.log('run', window)
+        var term = new Terminal()
+        term.open(document.getElementById('terminal'));
+        const fitAddon = new FitAddon();
+        term.loadAddon(fitAddon);
+        fitAddon.fit();
 
-        var term = null
-        function init() {
-            term = new Terminal()
-            term.open(document.getElementById('terminal'));
-            const fitAddon = new FitAddon();
-            term.loadAddon(fitAddon);
-            fitAddon.fit();
+        term.onKey(e => {
+            let text = e.key
+            if (e.key == '\r') {
+                text += '\n'
+            }
+            Edrys.sendMessage('w', text)
+        })
 
-            term.onKey(e => {
-                let text = e.key
-                if (e.key == '\r') {
-                    text += '\n'
-                }
-                Edrys.sendMessage('w', text)
-            })
+        Edrys.onMessage(({ from, subject, body }) => {
+            term.write(body)
 
-            Edrys.onMessage(({ from, subject, body }) => {
-                term.write(body)
-
-                if (subject == 'w' && Edrys.role == 'station')
-                    write(body)
-            })
-        }
-
-        if (Edrys.role != 'station') init()
+            if (subject == 'w' && Edrys.role == 'station')
+                write(body)
+        })
 
         let port = null
-        async function connect(baudRate) {
+        async function serial_connect(baudRate) {
             port = await navigator.serial.requestPort();
             await port.open({ baudRate: baudRate });
-            read()
+            serial_read()
         }
+        window.serial_connect = serial_connect
 
         let reader = null
         let readableStreamClosed = null
-        async function read() {
+        async function serial_read() {
             const textDecoder = new TextDecoderStream();
             readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
             reader = textDecoder.readable.getReader();
@@ -97,19 +94,14 @@
             }
         }
 
-        async function close() {
-            const textEncoder = new TextEncoderStream();
-            const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-            if (reader) reader.cancel();
-            if (readableStreamClosed) await readableStreamClosed.catch(() => { /* Ignored */ });
-            if (writer) writer.close();
-            if (writableStreamClosed) await writableStreamClosed;
-            await port.close();
+        async function serial_close() {
+            window.location.reload()
         }
+        window.serial_close = serial_close
 
         let writer = null
         let writableStreamClosed = null
-        async function write(text) {
+        async function serial_write(text) {
             const textEncoder = new TextEncoderStream();
             writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
             writer = textEncoder.writable.getWriter();
