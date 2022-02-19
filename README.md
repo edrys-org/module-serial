@@ -13,3 +13,11 @@ https://edrys-org.github.io/module-serial/
 ```
 
 This module only works in stations (not normal Edrys rooms), so launch a station and join it to start. You will need to set a baud rate and connect at the station end.
+
+You may also optionally specify the follwoing config:
+
+```
+{
+  "baud": 9600
+}
+```

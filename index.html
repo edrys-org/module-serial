@@ -22,9 +22,11 @@
 
 <body>
     <template x-if="!!edrys" x-data="{ edrys: undefined }" x-init="Edrys.onUpdate((e) => { edrys = {...e} })">
-        <div x-show="edrys.role == 'station'" x-data="{ baudRate: 9600, connected: false }">
+        <div x-show="edrys.role == 'station'" x-data="{ baudRate: edrys.module.config.baud || 9600, connected: false }">
             <div x-show="!connected">
-                <label for="baud">Baud Rate</label>
+                <label for="baud" style="float: left; padding: 10px">Baud Rate:</label>
+                <button style="float: right"
+                    @click="async (e) => { await serial_connect(baudRate); connected = true }">Connect</button>
                 <select id="baud" x-model="baudRate">
                     <option value="1200">1200</option>
                     <option value="2400">2400</option>
@@ -35,11 +37,10 @@
                     <option value="57600">57600</option>
                     <option value="115200">115200</option>
                 </select>
-                <button
-                    @click="async (e) => { await window.serial_connect(baudRate); connected = true }">Connect</button>
             </div>
             <div x-show="connected">
-                <button @click="async (e) => { await window.serial_close(); connected = false }">Disconnect</button>
+                <button style="z-index: 100; position: absolute; right: 5px; top: 5px;"
+                    @click="async (e) => { await serial_close(); connected = false }">Disconnect</button>
             </div>
         </div>
     </template>
@@ -48,7 +49,7 @@
 
     <script type="module">
         import { FitAddon } from './xterm/xterm-addon-fit.js'
-        console.log('run', window)
+
         var term = new Terminal()
         term.open(document.getElementById('terminal'));
         const fitAddon = new FitAddon();
@@ -56,27 +57,24 @@
         fitAddon.fit();
 
         term.onKey(e => {
-            let text = e.key
-            if (e.key == '\r') {
-                text += '\n'
-            }
-            Edrys.sendMessage('w', text)
+            Edrys.sendMessage('w', e.key)
         })
 
         Edrys.onMessage(({ from, subject, body }) => {
-            term.write(body)
+            term.write(body.replace('\n', '\r').replace('\r', '\n\r'))
 
             if (subject == 'w' && Edrys.role == 'station')
-                write(body)
+                serial_write(body)
         })
+    </script>
 
+    <script>
         let port = null
         async function serial_connect(baudRate) {
             port = await navigator.serial.requestPort();
             await port.open({ baudRate: baudRate });
             serial_read()
         }
-        window.serial_connect = serial_connect
 
         let reader = null
         let readableStreamClosed = null
@@ -97,7 +95,6 @@
         async function serial_close() {
             window.location.reload()
         }
-        window.serial_close = serial_close
 
         let writer = null
         let writableStreamClosed = null
