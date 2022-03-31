@@ -43,7 +43,7 @@
             <div x-show="!ready">
                 <label for="baud" style="float: left; padding: 10px">Baud Rate:</label>
                 <button style="float: right"
-                    @click="async (e) => { ready = true; await serial_connect(baudRate, true); }">Connect</button>
+                    @click="async (e) => { ready = await serial_connect(baudRate, true); }">Connect</button>
                 <select id="baud" x-model="baudRate">
                     <option value="1200">1200</option>
                     <option value="2400">2400</option>
@@ -90,7 +90,6 @@
         let port = null
         async function serial_connect(baudRate, userInitiated = false) {
             if (connected) return true
-            console.log(connected)
             port = await navigator.serial.getPorts();
             if ((port !== null) && (Array.isArray(port)) && (port.length > 0)) {
                 port = port[0];
@@ -103,7 +102,7 @@
             if (port) {
                 await port.open({ baudRate: baudRate });
                 connected = true
-                serial_read()
+                setTimeout(e => serial_read(), 1)
             }
             connected = false
             return connected
