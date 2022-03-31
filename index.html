@@ -21,20 +21,9 @@
 </head>
 
 <body>
-    <template x-if="!!edrys" x-data="{ edrys: undefined }" x-init="async (e) => {
-        
+    <template x-if="!!edrys" x-data="{ edrys: undefined }" x-init="async e => {
                 Edrys.onUpdate((e) => { edrys = {...e} })
                 
-                while (true) {
-                    if (await serial_connect(baudRate)) {
-                        connected = true
-                        port.addEventListener('disconnect', async e => {
-                            await serial_close()
-                        });
-                        break
-                    }
-                }
-
                 let port = null
                 async function serial_connect(baudRate, userInitiated = false) {
                     port = await navigator.serial.getPorts();
@@ -90,8 +79,16 @@
                     await writer.write(text);
                 }
 
-            }
-            ">
+                Edrys.onReady(async () => {
+
+                    while (true) {
+                    if (await serial_connect(Edrys.module.config.baud || Edrys.getItem('baud') || 9600)) {
+                        connected = true;
+                        break;
+                    }
+                }
+                })
+            }">
         <div x-show="edrys.role == 'station'"
             x-data="{ baudRate: edrys.module.config.baud || edrys.getItem('baud') || 9600, connected: false }"
             x-effect="e => { edrys.setItem('baud', baudRate) }">
