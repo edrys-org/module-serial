@@ -96,6 +96,7 @@
                 port = port[0];
             } else if (userInitiated) {
                 port = await navigator.serial.requestPort()
+                return true
             } else {
                 port = false
             };
