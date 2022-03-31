@@ -27,9 +27,9 @@
                 Edrys.onReady(async () => {
                     while (true) {
                         if (await serial_connect(Edrys.module.config.baud || Edrys.getItem('baud') || 9600)) {
-                            connected = true;
+                            ready = true;
                             port.addEventListener('disconnect', async e => {
-                                connected = false;
+                                ready = false;
                                 await serial_close()
                             });
                             return;
@@ -38,12 +38,12 @@
                 })
             }">
         <div x-show="edrys.role == 'station'"
-            x-data="{ baudRate: edrys.module.config.baud || edrys.getItem('baud') || 9600, connected: false }"
+            x-data="{ baudRate: edrys.module.config.baud || edrys.getItem('baud') || 9600, ready: false }"
             x-effect="e => { edrys.setItem('baud', baudRate) }">
-            <div x-show="!connected">
+            <div x-show="!ready">
                 <label for="baud" style="float: left; padding: 10px">Baud Rate:</label>
                 <button style="float: right"
-                    @click="async (e) => { connected = await serial_connect(baudRate, true); }">Connect</button>
+                    @click="async (e) => { ready = await serial_connect(baudRate, true); }">Connect</button>
                 <select id="baud" x-model="baudRate">
                     <option value="1200">1200</option>
                     <option value="2400">2400</option>
@@ -55,7 +55,7 @@
                     <option value="115200">115200</option>
                 </select>
             </div>
-            <div x-show="connected">
+            <div x-show="ready">
                 <button style="z-index: 100; position: absolute; right: 5px; top: 5px;"
                     @click="async (e) => { await serial_close(); }">Disconnect</button>
             </div>
@@ -141,7 +141,8 @@
                 writer = textEncoder.writable.getWriter();
                 writerInit = true
             }
-            await writer.write(text);
+            if (writer)
+                await writer.write(text);
         }
 
     </script>
