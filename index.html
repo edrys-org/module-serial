@@ -21,23 +21,8 @@
 </head>
 
 <body>
-    <template x-if="!!edrys" x-data="{ edrys: undefined }" x-init="async e => {
-                Edrys.onUpdate((e) => { edrys = {...e} })
-                
-                Edrys.onReady(async () => {
-                    while (true) {
-                        if (await serial_connect(Edrys.module.config.baud || Edrys.getItem('baud') || 9600)) {
-                            console.log('Auto-connected')
-                            ready = true;
-                            port.addEventListener('disconnect', async e => {
-                                ready = false;
-                                await serial_close()
-                            });
-                            return;
-                        }
-                    }
-                })
-            }">
+    <template x-if="!!edrys" x-data="{ edrys: undefined }"
+        x-init="async e => { Edrys.onUpdate((e) => { edrys = {...e} }) }">
         <div x-show="edrys.role == 'station'"
             x-data="{ baudRate: edrys.module.config.baud || edrys.getItem('baud') || 9600, ready: false }"
             x-effect="e => { edrys.setItem('baud', baudRate) }">
@@ -87,26 +72,44 @@
     </script>
 
     <script>
+        Edrys.onReady(async () => {
+            while (true) {
+                if (await serial_connect(Edrys.module.config.baud || Edrys.getItem('baud') || 9600)) {
+                    console.log('Auto-connected')
+                    ready = true;
+                    port.addEventListener('disconnect', async e => {
+                        ready = false;
+                        await serial_close()
+                    });
+                    return;
+                }
+            }
+        })
+
         let connected = false;
         let port = null
         async function serial_connect(baudRate, userInitiated = false) {
             if (connected) return true
+
+            if (userInitiated) {
+                port = await navigator.serial.requestPort()
+                return true
+            }
+
             port = await navigator.serial.getPorts();
             if ((port !== null) && (Array.isArray(port)) && (port.length > 0)) {
                 port = port[0];
-            } else if (userInitiated) {
-                port = await navigator.serial.requestPort()
-                return true
             } else {
-                port = false
+                return false
             };
+
 
             if (port && !connected) {
                 await port.open({ baudRate: baudRate });
                 connected = true
                 setTimeout(e => serial_read(), 1)
             }
-            connected = false
+
             return connected
         }
 
