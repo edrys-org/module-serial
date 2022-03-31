@@ -68,33 +68,52 @@
                             reader.releaseLock();
                             break;
                         }
-                        Edrys.sendMessage(" r", value); } } async function serial_close() { window.location.reload() }
-        let writerInit=false; let writer=null let writableStreamClosed=null async function serial_write(text) { if
-        (!port) { connected=false; return; } if (!ran && connected) { const textEncoder=new TextEncoderStream();
-        writableStreamClosed=textEncoder.readable.pipeTo(port.writable); writer=textEncoder.writable.getWriter();
-        writerInit=true } await writer.write(text); } } ">
-        <div x-show=" edrys.role=='station'"
-            x-data=" { baudRate: edrys.module.config.baud || edrys.getItem('baud') || 9600, connected: false }"
-        x-effect="e => { edrys.setItem('baud', baudRate) }">
-        <div x-show="!connected">
-            <label for="baud" style="float: left; padding: 10px">Baud Rate:</label>
-            <button style="float: right"
-                @click="async (e) => { await serial_connect(baudRate, true); }">Connect</button>
-            <select id="baud" x-model="baudRate">
-                <option value="1200">1200</option>
-                <option value="2400">2400</option>
-                <option value="4800">4800</option>
-                <option value="9600">9600</option>
-                <option value="19200">19200</option>
-                <option value="38400">38400</option>
-                <option value="57600">57600</option>
-                <option value="115200">115200</option>
-            </select>
-        </div>
-        <div x-show="connected">
-            <button style="z-index: 100; position: absolute; right: 5px; top: 5px;"
-                @click="async (e) => { await serial_close(); }">Disconnect</button>
-        </div>
+                        Edrys.sendMessage('r', value);
+                    }
+                }
+
+                async function serial_close() {
+                    window.location.reload()
+                }
+
+                let writerInit = false;
+                let writer = null
+                let writableStreamClosed = null
+                async function serial_write(text) {
+                    if (!port) { connected = false; return; }
+                    if (!ran && connected) {
+                        const textEncoder = new TextEncoderStream();
+                        writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+                        writer = textEncoder.writable.getWriter();
+                        writerInit = true
+                    }
+                    await writer.write(text);
+                }
+
+            }
+            ">
+        <div x-show="edrys.role == 'station'"
+            x-data="{ baudRate: edrys.module.config.baud || edrys.getItem('baud') || 9600, connected: false }"
+            x-effect="e => { edrys.setItem('baud', baudRate) }">
+            <div x-show="!connected">
+                <label for="baud" style="float: left; padding: 10px">Baud Rate:</label>
+                <button style="float: right"
+                    @click="async (e) => { await serial_connect(baudRate, true); }">Connect</button>
+                <select id="baud" x-model="baudRate">
+                    <option value="1200">1200</option>
+                    <option value="2400">2400</option>
+                    <option value="4800">4800</option>
+                    <option value="9600">9600</option>
+                    <option value="19200">19200</option>
+                    <option value="38400">38400</option>
+                    <option value="57600">57600</option>
+                    <option value="115200">115200</option>
+                </select>
+            </div>
+            <div x-show="connected">
+                <button style="z-index: 100; position: absolute; right: 5px; top: 5px;"
+                    @click="async (e) => { await serial_close(); }">Disconnect</button>
+            </div>
         </div>
     </template>
 
