@@ -27,6 +27,7 @@
                 Edrys.onReady(async () => {
                     while (true) {
                         if (await serial_connect(Edrys.module.config.baud || Edrys.getItem('baud') || 9600)) {
+                            console.log('Auto-connected')
                             ready = true;
                             port.addEventListener('disconnect', async e => {
                                 ready = false;
@@ -99,7 +100,7 @@
                 port = false
             };
 
-            if (port) {
+            if (port && !connected) {
                 await port.open({ baudRate: baudRate });
                 connected = true
                 setTimeout(e => serial_read(), 1)
