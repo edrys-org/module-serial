@@ -24,69 +24,17 @@
     <template x-if="!!edrys" x-data="{ edrys: undefined }" x-init="async e => {
                 Edrys.onUpdate((e) => { edrys = {...e} })
                 
-                let port = null
-                async function serial_connect(baudRate, userInitiated = false) {
-                    port = await navigator.serial.getPorts();
-                    if ((port !== null) && (Array.isArray(port)) && (port.length > 0)) {
-                        port = port[0];
-                    } else if (userInitiated) {
-                        port = await navigator.serial.requestPort()
-                    } else {
-                        port = false
-                    };
-
-                    if (port) {
-                        await port.open({ baudRate: baudRate });
-                        serial_read()
-                        console.log('connected', port)
-                        connected = true
-                    }
-                    connected = false
-                }
-
-                let reader = null
-                let readableStreamClosed = null
-                async function serial_read() {
-                    if (!port) { connected = false; return; }
-                    const textDecoder = new TextDecoderStream();
-                    readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
-                    reader = textDecoder.readable.getReader();
+                Edrys.onReady(async () => {
                     while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) {
-                            reader.releaseLock();
+                        if (await serial_connect(Edrys.module.config.baud || Edrys.getItem('baud') || 9600)) {
+                            connected = true;
+                            port.addEventListener('disconnect', async e => {
+                                connected = false;
+                                await serial_close()
+                            });
                             break;
                         }
-                        Edrys.sendMessage('r', value);
                     }
-                }
-
-                async function serial_close() {
-                    window.location.reload()
-                }
-
-                let writerInit = false;
-                let writer = null
-                let writableStreamClosed = null
-                async function serial_write(text) {
-                    if (!port) { connected = false; return; }
-                    if (!ran && connected) {
-                        const textEncoder = new TextEncoderStream();
-                        writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-                        writer = textEncoder.writable.getWriter();
-                        writerInit = true
-                    }
-                    await writer.write(text);
-                }
-
-                Edrys.onReady(async () => {
-
-                    while (true) {
-                    if (await serial_connect(Edrys.module.config.baud || Edrys.getItem('baud') || 9600)) {
-                        connected = true;
-                        break;
-                    }
-                }
                 })
             }">
         <div x-show="edrys.role == 'station'"
@@ -138,6 +86,62 @@
     </script>
 
     <script>
+
+        let port = null
+        async function serial_connect(baudRate, userInitiated = false) {
+            port = await navigator.serial.getPorts();
+            if ((port !== null) && (Array.isArray(port)) && (port.length > 0)) {
+                port = port[0];
+            } else if (userInitiated) {
+                port = await navigator.serial.requestPort()
+            } else {
+                port = false
+            };
+
+            if (port) {
+                await port.open({ baudRate: baudRate });
+                serial_read()
+                console.log('connected', port)
+                connected = true
+            }
+            connected = false
+        }
+
+        let reader = null
+        let readableStreamClosed = null
+        async function serial_read() {
+            if (!port) { connected = false; return; }
+            const textDecoder = new TextDecoderStream();
+            readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+            reader = textDecoder.readable.getReader();
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) {
+                    reader.releaseLock();
+                    break;
+                }
+                Edrys.sendMessage('r', value);
+            }
+        }
+
+        async function serial_close() {
+            window.location.reload()
+        }
+
+        let writerInit = false;
+        let writer = null
+        let writableStreamClosed = null
+        async function serial_write(text) {
+            if (!port) { connected = false; return; }
+            if (!ran && connected) {
+                const textEncoder = new TextEncoderStream();
+                writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+                writer = textEncoder.writable.getWriter();
+                writerInit = true
+            }
+            await writer.write(text);
+        }
+
     </script>
 
     <style>
