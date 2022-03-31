@@ -25,7 +25,7 @@
                 Edrys.onUpdate((e) => { edrys = {...e} })
                 
                 Edrys.onReady(async () => {
-                    while (true) {
+                    while (true ) {
                         if (await serial_connect(Edrys.module.config.baud || Edrys.getItem('baud') || 9600)) {
                             connected = true;
                             port.addEventListener('disconnect', async e => {
@@ -43,7 +43,7 @@
             <div x-show="!connected">
                 <label for="baud" style="float: left; padding: 10px">Baud Rate:</label>
                 <button style="float: right"
-                    @click="async (e) => { await serial_connect(baudRate, true); }">Connect</button>
+                    @click="async (e) => { connected = await serial_connect(baudRate, true); }">Connect</button>
                 <select id="baud" x-model="baudRate">
                     <option value="1200">1200</option>
                     <option value="2400">2400</option>
@@ -86,9 +86,10 @@
     </script>
 
     <script>
-
+        let connected = false;
         let port = null
         async function serial_connect(baudRate, userInitiated = false) {
+            if (connected) return true
             port = await navigator.serial.getPorts();
             if ((port !== null) && (Array.isArray(port)) && (port.length > 0)) {
                 port = port[0];
@@ -133,7 +134,7 @@
         let writableStreamClosed = null
         async function serial_write(text) {
             if (!port) { connected = false; return; }
-            if (!ran && connected) {
+            if (!writerInit && connected) {
                 const textEncoder = new TextEncoderStream();
                 writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
                 writer = textEncoder.writable.getWriter();
