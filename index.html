@@ -25,14 +25,14 @@
                 Edrys.onUpdate((e) => { edrys = {...e} })
                 
                 Edrys.onReady(async () => {
-                    while (true ) {
+                    while (true) {
                         if (await serial_connect(Edrys.module.config.baud || Edrys.getItem('baud') || 9600)) {
                             connected = true;
                             port.addEventListener('disconnect', async e => {
                                 connected = false;
                                 await serial_close()
                             });
-                            break;
+                            return;
                         }
                     }
                 })
@@ -106,6 +106,7 @@
                 connected = true
             }
             connected = false
+            return connected
         }
 
         let reader = null
@@ -133,8 +134,8 @@
         let writer = null
         let writableStreamClosed = null
         async function serial_write(text) {
-            if (!port) { connected = false; return; }
-            if (!writerInit && connected) {
+            if (!port || !connected) { connected = false; return; }
+            if (!writerInit) {
                 const textEncoder = new TextEncoderStream();
                 writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
                 writer = textEncoder.writable.getWriter();
